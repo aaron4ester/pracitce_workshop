@@ -1,4 +1,5 @@
-#Empty Username & Password Array
+# Empty Username & Password Array
+# 2-Dimensional Array; Each unit includes the username and password
 accounts = []
 
 
@@ -20,6 +21,25 @@ def find_account(username):
     return None
 
 
+# Special characters required when creating a password
+SPECIAL_CHARACTERS = "!@#$%^&*()-_=+[]{};:'\",.<>/?\\|`~"
+
+
+# Algorithm for determining if a password is valid or not;
+# Password must be at least 8 characters long, have 1 Upper-case letter,
+# 1 special symbol, and no spaces
+def validate_password(password):
+    if len(password) < 8:
+        return "Password must be at least 8 characters long."
+    if " " in password:
+        return "Password cannot contain spaces."
+    if not any(char.isupper() for char in password):
+        return "Password must contain at least one capital letter."
+    if not any(char in SPECIAL_CHARACTERS for char in password):
+        return "Password must contain at least one special symbol."
+    return None
+
+
 #--------------------
 # Create Account Page
 #--------------------
@@ -33,7 +53,13 @@ def create_account():
         return
 
     # Passwords can be the same for multiple users
-    password = input("Choose a password: ").strip()
+    while True:
+        password = input("Choose a password: ")
+        error = validate_password(password)
+        if error:
+            print(error)
+            continue
+        break
 
     # Adds data to the array
     accounts.append({"username": username, "password": password})
@@ -56,6 +82,7 @@ def sign_in():
         dashboard(account)
     else:
         print("Invalid username or password.")
+
 
 #-----------------------------------------------------
 # After Signing In -> Takes user to the Dashboard Page
