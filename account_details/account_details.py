@@ -1,17 +1,18 @@
 import sqlite3
 
 
-ACCOUNT_QUERY = """
-    SELECT
-        a.account_id,
+USER_ACCOUNT_QUERY = """
+    SELECT   
+        u.user_id,        
         u.name,
         u.email,
+        u.created_at AS user_created_at,
+        a.account_id,
         a.account_type,
         a.balance,
         a.created_at AS account_created_at,
-        u.created_at AS user_created_at
-    FROM accounts a
-    JOIN users u ON a.user_id = u.user_id
+    FROM users u
+    LEFT JOIN accounts a ON u.user_id = a.user_id
     WHERE a.account_id = ?;
 """
 
@@ -32,43 +33,40 @@ SCHEMA = """
     );
 """
 
-INTEREST_RATES = {
-    "savings": 0.02,
-    "checking": 0.01,
-    "money market": 0.015,
-    "credit": 0.05,
-}
 
-
-def fetch_current_interest_rate(account_type: str) -> float:
-    """Return the current interest rate for an account type."""
-    return INTEREST_RATES.get(account_type, 0.0)
-
-
-def get_account_details(account_id: int, db_path: str = ":memory:") -> dict | None:
+def get_account_details(user_id: int, db_path: str = ":memory:") -> dict | None:
     """Return account and account-holder details, or ``None`` if not found."""
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
-    return _get_account_details(conn, account_id)
+    return _get_user_profile(conn, user_id)
 
-def _get_account_details(conn: sqlite3.Connection, account_id: int) -> dict | None:
-    row = conn.execute(ACCOUNT_QUERY, (account_id,)).fetchone()
-    if row is None:
+
+def _get_user_profile(conn: sqlite3.Connection, user_id: int) -> dict | None:
+    rows = conn.execute(USER_ACCOUNT_QUERY, (user_id,)).fetchall()
+    if not rows:
         return None
 
-    balance = float(row["balance"])
-    interest_rate = fetch_current_interest_rate(row["account_type"])
-    return {
-        "account_id": row["account_id"],
-        "name": row["name"],
-        "email": row["email"],
-        "account_type": row["account_type"],
-        "balance": balance,
-        "interest_rate": interest_rate,
-        "annual_yield": round(balance * interest_rate, 2),
-        "account_created_at": row["account_created_at"],
-        "user_created_at": row["user_created_at"],
+    balance = float(rows[0]["balance"])
+    first_row = rows[0]
+    profile ={
+        "account_id": first_row["account_id"],
+        "name": first_row["name"],
+        "email": first_row["email"],
+        "user_created_at": first_row["user_created_at"],
+        "accounts": [],
     }
+
+    for row in rows:
+        if row["account_id"] is not None:
+            profile["accounts"].append(
+                {
+                    "account_id": row["account_id"],
+                    "account_type": row["account_type"],
+                    "balance": float(row["balance"]),
+                    "account_created_at": row["account_created_at"],
+                }
+            )
+    return profile
 
 
 def create_sample_database() -> sqlite3.Connection:
@@ -76,18 +74,18 @@ def create_sample_database() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.executescript(SCHEMA)
     users = [
-        ("Jane Doe", "jane.doe@example.com", "savings", 0.50),
-        ("John Smith", "john.smith@example.com", "checking", 500.00),
-        ("Bane Boe", "bane.boe@example.com", "credit", 2457.47),
-        ("Bohn Bmith", "bohn.bsmith@example.com", "savings", 500000.90),
+        ("Jane Doe", "jane.doe@example.com", "Savings", 0.50, "2026-01-01 12:00:00", "2026-01-01 12:00:00"),
+        ("John Smith", "john.smith@example.com", "Checking", 500.00, "2026-01-01 12:45:00", "2026-01-01 12:00:00"),
+        ("Bane Boe", "bane.boe@example.com", "Credit", 2457.47, "2026-01-01 1:23:00", "2026-01-01 12:00:00"),
+        ("Bohn Bmith", "bohn.bsmith@example.com", "Money Market", 500000.90, "2026-01-01 12:00:00", "2026-01-01 12:00:00"),
     ]
-    for name, email, account_type, balance in users:
+    for name, email, account_type, balance, account_created_at, user_created_at in users:
         user_id = conn.execute(
-            "INSERT INTO users (name, email) VALUES (?, ?)", (name, email)
+            "INSERT INTO users (name, email, created_at) VALUES (?, ?, ?)", (name, email, user_created_at)
         ).lastrowid
         conn.execute(
-            "INSERT INTO accounts (user_id, account_type, balance) VALUES (?, ?, ?)",
-            (user_id, account_type, balance),
+            "INSERT INTO accounts (user_id, account_type, balance, created_at) VALUES (?, ?, ?, ?)",
+            (user_id, account_type, balance, account_created_at),
         )
     conn.commit()
     return conn
@@ -105,14 +103,12 @@ def print_account_details(details: dict | None, account_id: int) -> None:
     print(f"Email              : {details['email']}")
     print(f"Type               : {details['account_type']}")
     print(f"Balance            : ${details['balance']:.2f}")
-    print(f"Interest Rate      : {details['interest_rate'] * 100:.2f}%")
-    print(f"Annual Yield       : ${details['annual_yield']:.2f}")
     print(f"Account Created At : {details['account_created_at']}")
     print(f"User Created At    : {details['user_created_at']}")
 
 
 def main() -> None:
-    target_account_id = 3
+    target_account_id = 2
     conn = create_sample_database()
     try:
         conn.row_factory = sqlite3.Row
