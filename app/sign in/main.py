@@ -24,10 +24,6 @@ class SignInRequest(BaseModel):
     password: str
 
 
-class AccountOut(BaseModel):
-    username: str
-
-
 def find_account(username):
     for account in accounts:
         if account["username"] == username:
@@ -47,7 +43,7 @@ def validate_password(password):
     return None
 
 
-@app.post("/accounts", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
+@app.post("/accounts", status_code=status.HTTP_201_CREATED)
 def create_account(payload: CreateAccountRequest):
     username = payload.username.strip()
 
@@ -61,8 +57,9 @@ def create_account(payload: CreateAccountRequest):
     if error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
 
-    accounts.append({"username": username, "password": payload.password})
-    return AccountOut(username=username)
+    account = {"username": username, "password": payload.password}
+    accounts.append(account)
+    return dashboard(account)
 
 
 @app.post("/signin")
