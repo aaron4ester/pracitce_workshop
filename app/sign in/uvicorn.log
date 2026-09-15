@@ -1,0 +1,9 @@
+INFO:     Started server process [17076]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:57549 - "POST /accounts HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:57554 - "POST /accounts HTTP/1.1" 201 Created
+INFO:     127.0.0.1:57555 - "POST /accounts HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:57556 - "POST /signin HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57557 - "POST /signin HTTP/1.1" 200 OK
